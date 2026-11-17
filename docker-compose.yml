@@ -1,0 +1,60 @@
+name: url-shortener
+
+# Local stack: PostgreSQL + one-shot migrations + the app (API and web UI on :3000).
+# ADMIN_API_KEY is read from your .env file (must be >= 32 characters).
+#
+# NODE_ENV=development here because production mode (correctly) refuses http:// base URLs and
+# CORS '*'. For a real deployment set NODE_ENV=production, an https APP_BASE_URL and explicit CORS.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: url_shortener
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d url_shortener']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/url_shortener?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: '3000'
+      HOST: 0.0.0.0
+      APP_BASE_URL: http://localhost:3000
+      CORS_ORIGIN: '*'
+      TRUST_PROXY: '0'
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY (>= 32 chars) in your .env file}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/url_shortener?schema=public
+      LOG_LEVEL: info
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

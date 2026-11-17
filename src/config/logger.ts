@@ -1,6 +1,16 @@
 import pino from 'pino';
 import { env } from './env';
 
+/** pino-pretty is a devDependency; only use it when present (absent in the production image). */
+const hasPrettyTransport = (): boolean => {
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const logger = pino({
   level: env.LOG_LEVEL,
   formatters: {
@@ -19,7 +29,7 @@ export const logger = pino({
     censor: '[REDACTED]',
   },
   transport:
-    env.NODE_ENV === 'development'
+    env.NODE_ENV === 'development' && hasPrettyTransport()
       ? {
           target: 'pino-pretty',
           options: {
