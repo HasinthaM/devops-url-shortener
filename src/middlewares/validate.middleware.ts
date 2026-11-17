@@ -26,7 +26,7 @@ export const validate = (schema: RequestValidationSchema): RequestHandler => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const details = error.errors.map((err) => ({
+        const details = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         }));
@@ -37,4 +37,3 @@ export const validate = (schema: RequestValidationSchema): RequestHandler => {
     }
   };
 };
-

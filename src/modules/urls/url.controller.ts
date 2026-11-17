@@ -27,7 +27,7 @@ export class UrlController {
    * Fast HTTP 302 redirect with decoupled, asynchronous analytics ingestion.
    */
   redirect = async (req: Request, res: Response): Promise<void> => {
-    const { shortCode } = req.params;
+    const shortCode = req.params['shortCode'] as string | undefined;
     if (!shortCode) {
       throw new NotFoundError('Missing short code parameter');
     }
@@ -49,7 +49,7 @@ export class UrlController {
    * GET /api/v1/urls/:shortCode
    */
   getDetails = async (req: Request, res: Response): Promise<void> => {
-    const { shortCode } = req.params;
+    const shortCode = req.params['shortCode'] as string | undefined;
     if (!shortCode) {
       throw new NotFoundError('Missing short code parameter');
     }
@@ -65,7 +65,7 @@ export class UrlController {
    * GET /api/v1/urls/:shortCode/stats
    */
   getStats = async (req: Request, res: Response): Promise<void> => {
-    const { shortCode } = req.params;
+    const shortCode = req.params['shortCode'] as string | undefined;
     if (!shortCode) {
       throw new NotFoundError('Missing short code parameter');
     }
@@ -96,7 +96,7 @@ export class UrlController {
    * DELETE /api/v1/urls/:shortCode
    */
   deactivate = async (req: Request, res: Response): Promise<void> => {
-    const { shortCode } = req.params;
+    const shortCode = req.params['shortCode'] as string | undefined;
     if (!shortCode) {
       throw new NotFoundError('Missing short code parameter');
     }
@@ -114,4 +114,3 @@ export class UrlController {
 }
 
 export const urlController = new UrlController();
-

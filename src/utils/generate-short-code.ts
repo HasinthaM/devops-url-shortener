@@ -30,4 +30,3 @@ export function generateShortCode(length = 7): string {
 
   return result;
 }
-

@@ -75,6 +75,7 @@
 
 ### 4. Get URL Statistics
 - **GET** `/api/v1/urls/:shortCode/stats`
+- **Auth**: requires `x-api-key` header or `Authorization: Bearer <key>`
 - **Response (200 OK)**:
   ```json
   {

@@ -152,7 +152,7 @@ describe('UrlService', () => {
       };
 
       mockRepo.findByShortCode.mockResolvedValueOnce(mockEntity);
-      mockRepo.deactivateByShortCode.mockResolvedValueOnce({ ...mockEntity, isActive: false });
+      mockRepo.deactivateByShortCode.mockResolvedValueOnce(true);
 
       await service.deactivateUrl('active1');
       expect(mockRepo.deactivateByShortCode).toHaveBeenCalledWith('active1');
@@ -175,4 +175,3 @@ describe('UrlService', () => {
     });
   });
 });
-

@@ -44,6 +44,7 @@ urlRoutes.get(
  */
 urlRoutes.get(
   '/:shortCode/stats',
+  requireApiKey,
   validate({ params: shortCodeParamSchema }),
   asyncHandler(urlController.getStats),
 );
@@ -61,4 +62,3 @@ urlRoutes.delete(
   validate({ params: shortCodeParamSchema }),
   asyncHandler(urlController.deactivate),
 );
-

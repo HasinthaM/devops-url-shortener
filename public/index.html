@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snip — DevOps URL Shortener</title>
+    <meta
+      name="description"
+      content="Production-oriented URL shortener built with TypeScript, Express, PostgreSQL and Prisma."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Snip home">
+        <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="url(#g)" />
+          <path
+            d="M13 19l6-6M12 15l-2 2a3.5 3.5 0 005 5l2-2M20 17l2-2a3.5 3.5 0 00-5-5l-2 2"
+            stroke="#fff"
+            stroke-width="2"
+            stroke-linecap="round"
+            fill="none"
+          />
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="32" y2="32">
+              <stop stop-color="#7c5cff" />
+              <stop offset="1" stop-color="#22d3ee" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>Snip</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#shorten">Shorten</a>
+        <a href="#manage">Manage</a>
+        <a href="#status">Status</a>
+        <a href="/docs" id="docs-link" hidden>API Docs</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">DevOps portfolio project</p>
+        <h1>Short links. <span class="grad">Production-grade</span> engineering.</h1>
+        <p class="lead">
+          A REST API with PostgreSQL, rate limiting, async analytics, health probes and CI/CD —
+          this page talks to it live.
+        </p>
+      </section>
+
+      <section id="shorten" class="card">
+        <h2>Shorten a URL</h2>
+        <form id="create-form" novalidate>
+          <label for="originalUrl">Destination URL</label>
+          <div class="row">
+            <input
+              id="originalUrl"
+              name="originalUrl"
+              type="url"
+              inputmode="url"
+              placeholder="https://example.com/a/very/long/link"
+              autocomplete="off"
+              required
+            />
+            <button type="submit" class="btn primary" id="create-btn">Shorten</button>
+          </div>
+          <details class="adv">
+            <summary>Options</summary>
+            <label for="expiresAt">Expires at <span class="muted">(optional)</span></label>
+            <input id="expiresAt" name="expiresAt" type="datetime-local" />
+          </details>
+          <p class="form-error" id="create-error" role="alert" hidden></p>
+        </form>
+
+        <div id="result" class="result" hidden>
+          <p class="muted small">Your short link</p>
+          <div class="row">
+            <a id="result-link" class="short-link" target="_blank" rel="noopener noreferrer"></a>
+            <button type="button" class="btn" id="copy-btn">Copy</button>
+          </div>
+          <p class="muted small" id="result-meta"></p>
+        </div>
+
+        <div id="recent-wrap" hidden>
+          <h3>Recent links <button type="button" class="link-btn" id="clear-recent">Clear</button></h3>
+          <ul id="recent" class="recent"></ul>
+        </div>
+      </section>
+
+      <section id="manage" class="card">
+        <h2>Inspect &amp; manage</h2>
+        <p class="muted">
+          Details are public. Stats and deactivation require the admin API key (kept in memory only,
+          never stored).
+        </p>
+        <form id="manage-form" novalidate>
+          <div class="grid2">
+            <div>
+              <label for="code">Short code or URL</label>
+              <input id="code" type="text" placeholder="aB3dE9x" autocomplete="off" />
+            </div>
+            <div>
+              <label for="apiKey">Admin API key</label>
+              <input id="apiKey" type="password" placeholder="x-api-key" autocomplete="off" />
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn" data-action="details">Details</button>
+            <button type="button" class="btn" data-action="stats">Stats</button>
+            <button type="button" class="btn danger" data-action="deactivate">Deactivate</button>
+          </div>
+        </form>
+        <p class="form-error" id="manage-error" role="alert" hidden></p>
+        <p class="form-ok" id="manage-ok" role="status" hidden></p>
+        <dl id="manage-out" class="kv" hidden></dl>
+        <div id="tiles" class="tiles" hidden></div>
+      </section>
+
+      <section id="status" class="card">
+        <h2>System status</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="dot" id="dot-live"></span>
+            <div>
+              <strong>Liveness</strong>
+              <span class="muted small" id="txt-live">checking…</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="dot" id="dot-ready"></span>
+            <div>
+              <strong>Readiness (PostgreSQL)</strong>
+              <span class="muted small" id="txt-ready">checking…</span>
+            </div>
+          </div>
+        </div>
+        <p class="muted small">
+          Polls <code>/health</code> and <code>/ready</code> every 15 s — the same endpoints
+          Kubernetes probes use.
+        </p>
+      </section>
+
+      <section class="card stack">
+        <h2>Under the hood</h2>
+        <ul class="chips">
+          <li>TypeScript</li>
+          <li>Express 5</li>
+          <li>PostgreSQL</li>
+          <li>Prisma 7</li>
+          <li>Zod</li>
+          <li>Helmet + CSP</li>
+          <li>Rate limiting</li>
+          <li>SSRF protection</li>
+          <li>Pino logging</li>
+          <li>Jest · 71 tests</li>
+          <li>GitHub Actions</li>
+          <li>Docker · K8s ready</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Built to showcase DevOps &amp; backend engineering.</span>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="app.js" defer></script>
+  </body>
+</html>

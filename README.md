@@ -162,7 +162,7 @@ erDiagram
 | `POST` | `/api/v1/urls` | Create a shortened URL | No | Strict (20 req/min) |
 | `GET` | `/:shortCode` | Fast 302 redirect to destination | No | High-throughput (500 req/min) |
 | `GET` | `/api/v1/urls/:shortCode` | Retrieve URL metadata | No | Standard (100 req/min) |
-| `GET` | `/api/v1/urls/:shortCode/stats` | Retrieve total clicks & metrics | No | Standard (100 req/min) |
+| `GET` | `/api/v1/urls/:shortCode/stats` | Retrieve total clicks & metrics | Yes (API key) | Standard (100 req/min) |
 | `DELETE` | `/api/v1/urls/:shortCode` | Soft-deactivate short URL | Yes (`x-api-key`) | Standard (100 req/min) |
 | `GET` | `/health` | Liveness health check | No | Unrestricted |
 | `GET` | `/ready` | Readiness check (DB ping) | No | Unrestricted |

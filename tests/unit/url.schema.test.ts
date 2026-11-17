@@ -81,4 +81,3 @@ describe('URL Schema Validation', () => {
     });
   });
 });
-

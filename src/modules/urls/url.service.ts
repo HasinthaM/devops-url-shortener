@@ -1,6 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { UrlRepository, urlRepository } from './url.repository';
-import { CreateUrlInput, CreateUrlResponseDto, UrlDetailsResponseDto, UrlEntity } from './url.types';
+import {
+  CreateUrlInput,
+  CreateUrlResponseDto,
+  UrlDetailsResponseDto,
+  UrlEntity,
+} from './url.types';
 import { UrlMapper } from './url.mapper';
 import { generateShortCode } from '../../utils/generate-short-code';
 import { NotFoundError, GoneError, ConflictError } from '../../utils/errors';
@@ -27,9 +32,14 @@ export class UrlService {
         return UrlMapper.toCreateResponse(entity);
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          logger.warn({ shortCode, attempt }, 'Short code collision detected. Retrying with new code.');
+          logger.warn(
+            { shortCode, attempt },
+            'Short code collision detected. Retrying with new code.',
+          );
           if (attempt === maxRetries) {
-            throw new ConflictError('Unable to generate a unique short code after multiple attempts. Please retry.');
+            throw new ConflictError(
+              'Unable to generate a unique short code after multiple attempts. Please retry.',
+            );
           }
           continue;
         }
@@ -89,9 +99,12 @@ export class UrlService {
       throw new GoneError('The requested short URL is already inactive.', 'URL_ALREADY_INACTIVE');
     }
 
-    await this.repo.deactivateByShortCode(shortCode);
+    const updated = await this.repo.deactivateByShortCode(shortCode);
+    if (!updated) {
+      // Lost a race with a concurrent deactivation.
+      throw new GoneError('The requested short URL is already inactive.', 'URL_ALREADY_INACTIVE');
+    }
   }
 }
 
 export const urlService = new UrlService();
-

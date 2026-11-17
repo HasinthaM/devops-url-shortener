@@ -1,6 +1,12 @@
 import { prisma } from '../../config/database';
 import { RecordClickInput } from './analytics.types';
 
+const MAX_REFERRER_LENGTH = 2048;
+const MAX_USER_AGENT_LENGTH = 512;
+
+const truncate = (value: string | null | undefined, max: number): string | null =>
+  value ? value.slice(0, max) : null;
+
 export class AnalyticsRepository {
   /**
    * Persists a single click event to the database.
@@ -9,8 +15,8 @@ export class AnalyticsRepository {
     await prisma.urlClickAnalytics.create({
       data: {
         urlId: data.urlId,
-        referrer: data.referrer ?? null,
-        userAgent: data.userAgent ?? null,
+        referrer: truncate(data.referrer, MAX_REFERRER_LENGTH),
+        userAgent: truncate(data.userAgent, MAX_USER_AGENT_LENGTH),
       },
     });
   }
@@ -39,4 +45,3 @@ export class AnalyticsRepository {
 }
 
 export const analyticsRepository = new AnalyticsRepository();
-

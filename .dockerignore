@@ -9,6 +9,8 @@ coverage
 *.log
 .prettierrc
 eslint.config.*
-tsconfig.json
-README.md
+*.md
+coverage
+.env.*
+!.env.example
 

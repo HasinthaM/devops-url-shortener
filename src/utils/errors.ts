@@ -22,7 +22,11 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-  constructor(message = 'Resource not found', code = 'RESOURCE_NOT_FOUND', details: unknown = null) {
+  constructor(
+    message = 'Resource not found',
+    code = 'RESOURCE_NOT_FOUND',
+    details: unknown = null,
+  ) {
     super(message, 404, code, details);
   }
 }
@@ -46,7 +50,11 @@ export class ConflictError extends AppError {
 }
 
 export class GoneError extends AppError {
-  constructor(message = 'Resource is no longer available', code = 'RESOURCE_GONE', details: unknown = null) {
+  constructor(
+    message = 'Resource is no longer available',
+    code = 'RESOURCE_GONE',
+    details: unknown = null,
+  ) {
     super(message, 410, code, details);
   }
 }
@@ -56,4 +64,3 @@ export class ValidationError extends AppError {
     super(message, 400, 'VALIDATION_ERROR', details);
   }
 }
-

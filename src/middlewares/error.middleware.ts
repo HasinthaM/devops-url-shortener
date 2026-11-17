@@ -8,7 +8,6 @@ export const errorHandler: ErrorRequestHandler = (
   err: Error,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
 ): void => {
   let statusCode = 500;
@@ -26,7 +25,6 @@ export const errorHandler: ErrorRequestHandler = (
       statusCode = 409;
       errorCode = 'DUPLICATE_RESOURCE';
       message = 'A resource with this identifier already exists.';
-      details = err.meta;
     } else if (err.code === 'P2025') {
       statusCode = 404;
       errorCode = 'RESOURCE_NOT_FOUND';
@@ -77,4 +75,3 @@ export const errorHandler: ErrorRequestHandler = (
     },
   });
 };
-

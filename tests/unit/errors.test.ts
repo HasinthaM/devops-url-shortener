@@ -54,4 +54,3 @@ describe('Custom Error Classes', () => {
     expect(err.details).toEqual(details);
   });
 });
-

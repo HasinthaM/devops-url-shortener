@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { env } from '../config/env';
+import { createHash, timingSafeEqual } from 'crypto';
+
+/** Constant-time comparison (hashing equalizes length so nothing leaks via timing). */
+const safeEqual = (a: string, b: string): boolean =>
+  timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 
 /**
  * Authentication middleware for administrative and management endpoints.
@@ -20,13 +25,15 @@ export const requireApiKey = (req: Request, _res: Response, next: NextFunction):
   }
 
   if (!providedKey) {
-    throw new UnauthorizedError('Authentication required: Missing API key or bearer token', 'AUTH_REQUIRED');
+    throw new UnauthorizedError(
+      'Authentication required: Missing API key or bearer token',
+      'AUTH_REQUIRED',
+    );
   }
 
-  if (providedKey !== env.ADMIN_API_KEY) {
+  if (!safeEqual(providedKey, env.ADMIN_API_KEY)) {
     throw new UnauthorizedError('Invalid API key or credentials provided', 'INVALID_CREDENTIALS');
   }
 
   next();
 };
-

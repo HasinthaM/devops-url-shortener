@@ -14,4 +14,3 @@ export interface UrlStatsResponse {
   expiresAt: string | null;
   lastClickedAt: string | null;
 }
-

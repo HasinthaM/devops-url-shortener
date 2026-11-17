@@ -5,7 +5,11 @@ export class UrlRepository {
   /**
    * Inserts a new shortened URL record into PostgreSQL.
    */
-  async create(data: { originalUrl: string; shortCode: string; expiresAt?: Date | null }): Promise<UrlEntity> {
+  async create(data: {
+    originalUrl: string;
+    shortCode: string;
+    expiresAt?: Date | null;
+  }): Promise<UrlEntity> {
     return prisma.url.create({
       data: {
         originalUrl: data.originalUrl,
@@ -36,13 +40,14 @@ export class UrlRepository {
   /**
    * Soft-deactivates an active URL record.
    */
-  async deactivateByShortCode(shortCode: string): Promise<UrlEntity> {
-    return prisma.url.update({
-      where: { shortCode },
+  async deactivateByShortCode(shortCode: string): Promise<boolean> {
+    // Atomic check-and-set: only flips records that are still active (no read-then-write race).
+    const result = await prisma.url.updateMany({
+      where: { shortCode, isActive: true },
       data: { isActive: false },
     });
+    return result.count > 0;
   }
 }
 
 export const urlRepository = new UrlRepository();
-

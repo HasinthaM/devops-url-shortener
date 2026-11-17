@@ -30,4 +30,3 @@ export interface UrlDetailsResponseDto {
   updatedAt: string;
   expiresAt: string | null;
 }
-

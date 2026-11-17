@@ -30,4 +30,3 @@ describe('generateShortCode', () => {
     expect(() => generateShortCode(-5)).toThrow('Short code length must be greater than zero');
   });
 });
-

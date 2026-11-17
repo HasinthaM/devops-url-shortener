@@ -131,7 +131,9 @@ describe('URL Management & Redirection Endpoints (Integration)', () => {
         .spyOn(analyticsRepository, 'getLastClickedAt')
         .mockResolvedValueOnce(new Date('2026-11-04T12:30:00Z'));
 
-      const response = await request(app).get(`/api/v1/urls/${sampleUrl.shortCode}/stats`);
+      const response = await request(app)
+        .get(`/api/v1/urls/${sampleUrl.shortCode}/stats`)
+        .set('x-api-key', env.ADMIN_API_KEY);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -163,9 +165,7 @@ describe('URL Management & Redirection Endpoints (Integration)', () => {
 
     it('should deactivate URL when valid API key is supplied', async () => {
       jest.spyOn(urlRepository, 'findByShortCode').mockResolvedValueOnce(sampleUrl);
-      jest
-        .spyOn(urlRepository, 'deactivateByShortCode')
-        .mockResolvedValueOnce({ ...sampleUrl, isActive: false });
+      jest.spyOn(urlRepository, 'deactivateByShortCode').mockResolvedValueOnce(true);
 
       const response = await request(app)
         .delete(`/api/v1/urls/${sampleUrl.shortCode}`)
@@ -177,4 +177,3 @@ describe('URL Management & Redirection Endpoints (Integration)', () => {
     });
   });
 });
-

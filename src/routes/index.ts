@@ -8,6 +8,7 @@ import { redirectRateLimiter } from '../middlewares/rate-limit.middleware';
 import { asyncHandler } from '../utils/async-handler';
 import { checkDatabaseConnection } from '../config/database';
 import { swaggerSpec } from '../config/swagger';
+import { env } from '../config/env';
 
 export const routes = Router();
 
@@ -48,11 +49,14 @@ routes.get(
 );
 
 // Swagger Documentation endpoints
-routes.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-routes.get('/docs-json', (_req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
+// Disabled in production unless explicitly protected; never exposed anonymously there.
+if (env.NODE_ENV !== 'production') {
+  routes.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  routes.get('/docs-json', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+}
 
 // API v1 sub-routes
 routes.use('/api/v1/urls', urlRoutes);
@@ -64,4 +68,3 @@ routes.get(
   validate({ params: shortCodeParamSchema }),
   asyncHandler(urlController.redirect),
 );
-
