@@ -1,6 +1,7 @@
 # DevOps URL Shortener Platform – Backend Foundation
 
 [![CI Pipeline](https://github.com/hasin-ops/devops-url-shortener/actions/workflows/ci.yml/badge.svg)](https://github.com/hasin-ops/devops-url-shortener/actions)
+[![CodeQL](https://github.com/hasin-ops/devops-url-shortener/actions/workflows/codeql.yml/badge.svg)](https://github.com/hasin-ops/devops-url-shortener/security/code-scanning)
 ![Node.js](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4.x%2F5.x-000000?logo=express&logoColor=white)
@@ -349,15 +350,69 @@ http://localhost:3000/docs-json
 
 ---
 
+## 🔄 CI/CD & Security Pipeline
+
+Everything below runs on **GitHub Actions** (free for public repositories) and is defined as code in `.github/`.
+
+### Pipeline overview
+
+```
+ push / PR ──► validate ─────────┐
+              dockerfile-lint ───┼──► docker: build ► Trivy scan ► gate ► push to GHCR ► attest
+              secret-scan ───────┘                                     (main & tags only)
+
+ push / PR / weekly ──► CodeQL (separate workflow)
+ weekly            ──► Dependabot opens update PRs
+```
+
+The three quality jobs run in parallel; the `docker` job only starts if all of them pass, so a broken or insecure build is never published.
+
+### What each piece does
+
+| Piece | File | What it does & why it matters |
+| --- | --- | --- |
+| **Validate job** | `ci.yml` → `validate` | Spins up a real PostgreSQL service container, then runs `npm ci`, `npm audit`, Prettier, ESLint, TypeScript typecheck and the Jest suite with coverage. Proves every commit builds and passes tests against a real database, not mocks. |
+| **Coverage artifact** | `ci.yml` → `Upload Coverage Report` | Saves the `coverage/` report as a downloadable build artifact (14 days) so you can inspect which lines are untested. |
+| **Concurrency control** | `ci.yml` → `concurrency` | When you push again to the same branch, the older still-running pipeline is cancelled. Saves runner minutes and avoids stale results. |
+| **Least-privilege permissions** | `ci.yml` → `permissions` | The workflow token is read-only by default; only the `docker` job is granted `packages: write` / `security-events: write`. Limits the blast radius if a step is compromised. |
+| **Hadolint** | `ci.yml` → `dockerfile-lint`, `.hadolint.yaml` | Lints the `Dockerfile` against Docker best practices (and ShellCheck for `RUN` lines): unpinned tags, missing flags, bad layer patterns. Catches mistakes before the image is built. |
+| **Gitleaks** | `ci.yml` → `secret-scan` | Scans the **entire git history** (`fetch-depth: 0`) for committed API keys, passwords and tokens. A leaked secret in an old commit is still a leak, so history matters, not just the latest files. |
+| **Docker Buildx + layer cache** | `ci.yml` → `docker` | Builds the multi-stage image with BuildKit and caches layers in the GitHub Actions cache, so unchanged stages (e.g. `npm ci`) are not rebuilt every run. |
+| **Trivy image scan** | `ci.yml` → `docker` | Scans the exact built image (OS packages + npm dependencies) for known CVEs. Results are uploaded as SARIF to the repo's **Security → Code scanning** tab. |
+| **Trivy quality gate** | `ci.yml` → `docker` | A second Trivy run **fails the pipeline** on any *fixable* `CRITICAL`/`HIGH` vulnerability (`ignore-unfixed: true` avoids blocking on issues nobody can patch yet). Shift-left security: vulnerable images never reach the registry. |
+| **GHCR publishing** | `ci.yml` → `docker` | On pushes to `main` and version tags, pushes the image to the **GitHub Container Registry** (`ghcr.io/<owner>/<repo>`), authenticated with the built-in `GITHUB_TOKEN`, so no stored credentials are needed. Skipped on pull requests. |
+| **Semantic-version tagging** | `docker/metadata-action` | `main` → `:main`, `:latest`, `:sha-<commit>`. Pushing git tag `v1.2.3` → `:1.2.3`, `:1.2`, `:1`. Every image is traceable to a commit and versions are immutable and predictable. |
+| **SBOM** | `sbom: true` | Attaches a Software Bill of Materials to the image listing every package inside it, which is useful for audits and for answering "are we affected by CVE-X?" |
+| **Provenance attestation** | `provenance: mode=max` + `attest-build-provenance` | Records a signed, verifiable statement of *which repo, commit and workflow built the image* (SLSA-style supply-chain security). Consumers can verify the image was not tampered with or built elsewhere. |
+| **CodeQL** | `codeql.yml` | GitHub's SAST engine analyses the TypeScript source for vulnerabilities (injection, unsafe regex, SSRF, etc.) using the `security-and-quality` query suite. Runs on every push/PR and weekly to pick up new queries. Findings appear in **Security → Code scanning**. |
+| **Dependabot** | `dependabot.yml` | Opens weekly PRs to update npm packages, the Docker base image and the GitHub Actions versions themselves. Updates are grouped to avoid PR spam, and each PR runs through the full pipeline before merging. |
+
+### Releasing a version
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The pipeline then publishes `ghcr.io/<owner>/<repo>:1.0.0`, `:1.0` and `:1`.
+
+### Pulling the published image
+
+```bash
+docker pull ghcr.io/hasin-ops/devops-url-shortener:latest
+```
+
+> **One-time GitHub setup:** after the first successful run, open the repo's **Packages** and set the image visibility to *public* if you want others to pull it. Under **Settings → Code security**, enable *Code scanning* and *Dependabot alerts*.
+
+---
+
 ## 🗺️ DevOps & Cloud-Native Roadmap
 
-As the foundation is now established, upcoming phases will introduce:
-
-- [ ] **Dockerization**: Multi-stage, minimal `distroless` or `alpine` Dockerfile for lean production images.
-- [ ] **Docker Compose**: Orchestrating PostgreSQL, Redis, and Backend services locally with health checks.
+- [x] **Dockerization**: Multi-stage `alpine` Dockerfile, non-root user, `HEALTHCHECK`.
+- [x] **Docker Compose**: PostgreSQL, one-shot migrations and the app with health checks.
+- [x] **CI/CD Automation**: GitHub Actions for lint, test, Hadolint, Gitleaks, CodeQL, Trivy, GHCR publishing, SBOM and provenance. Dependabot keeps dependencies current.
 - [ ] **Redis Caching**: Decorator-pattern cache layer on `UrlRepository` for sub-5ms cached redirects.
 - [ ] **Asynchronous Message Queue**: Integrating BullMQ or RabbitMQ to stream click events to dedicated background workers.
 - [ ] **Prometheus & Grafana**: Exporting RED metrics (Rate, Errors, Duration) and building monitoring dashboards.
 - [ ] **Kubernetes Manifests & Helm Chart**: Deployments, Services, ConfigMaps, Secrets, Horizontal Pod Autoscaler (HPA), and PDBs.
-- [ ] **CI/CD Automation**: GitHub Actions pipeline for linting, testing, security scanning (Trivy), and automated container publishing (GHCR).
-
+- [ ] **Infrastructure as Code & GitOps**: Terraform on a free tier, deployed via Argo CD.

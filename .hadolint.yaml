@@ -1,0 +1,4 @@
+# Hadolint configuration. Keep ignores minimal and justified.
+ignored:
+  # Alpine package pinning is intentionally not enforced: the Dockerfile installs no apk packages.
+  - DL3018

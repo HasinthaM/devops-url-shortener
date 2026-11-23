@@ -3,10 +3,23 @@ name: CI Pipeline
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*']
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same branch/PR to save runner minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege by default; jobs that need more declare it themselves.
+permissions:
+  contents: read
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Code quality: format, lint, typecheck, tests
+  # ---------------------------------------------------------------------------
   validate:
     name: Lint, Typecheck & Test
     runs-on: ubuntu-latest
@@ -64,3 +77,148 @@ jobs:
           ADMIN_API_KEY: ci-test-secret-api-key-32chars!!
           APP_BASE_URL: http://localhost:3000
 
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # 2. Dockerfile lint (best practices + shell checks)
+  # ---------------------------------------------------------------------------
+  dockerfile-lint:
+    name: Lint Dockerfile (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+
+  # ---------------------------------------------------------------------------
+  # 3. Secret scanning over the full git history
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so old commits are scanned too
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # 4. Build image -> scan with Trivy -> publish to GHCR (not on PRs)
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Build, Scan & Publish Image
+    runs-on: ubuntu-latest
+    needs: [validate, dockerfile-lint, secret-scan]
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      security-events: write # upload Trivy SARIF to the Security tab
+      id-token: write # keyless signing
+      attestations: write
+    env:
+      REGISTRY: ghcr.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Generates lowercase image name + tags:
+      #   main        -> :main, :sha-<short>, :latest
+      #   tag v1.2.3  -> :1.2.3, :1.2, :1 (semantic versioning)
+      - name: Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Build once into the local daemon so Trivy can scan exactly what would ship.
+      - name: Build image (local, for scanning)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          load: true
+          push: false
+          tags: scan-target:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan (report to Security tab)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: scan-target:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Trivy results to GitHub Security tab
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      # Quality gate: fail the pipeline on fixable CRITICAL/HIGH vulnerabilities.
+      - name: Trivy gate (fail on fixable CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: scan-target:ci
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Reuses the cached layers from the build above, then pushes with SBOM + provenance.
+      - name: Push image to GHCR
+        id: push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
