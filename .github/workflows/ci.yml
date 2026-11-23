@@ -155,7 +155,7 @@ jobs:
 
       # Build once into the local daemon so Trivy can scan exactly what would ship.
       - name: Build image (local, for scanning)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: runtime
@@ -204,7 +204,7 @@ jobs:
       - name: Push image to GHCR
         id: push
         if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: runtime
