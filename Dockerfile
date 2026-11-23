@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Stage 1: install all dependencies (cached while package*.json is unchanged) ----
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -16,7 +16,7 @@ RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma gene
  && npm run build
 
 # ---- Stage 3: production-only dependencies ----
-FROM node:22-alpine AS prod-deps
+FROM node:26-alpine AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
@@ -26,7 +26,7 @@ FROM build AS migrate
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # ---- Stage 5: minimal runtime image ----
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
