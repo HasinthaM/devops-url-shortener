@@ -324,8 +324,63 @@ Use `npm ci --ignore-scripts` so dependency install scripts don't run on your ma
   from section 3 stays in the workflows. Remove it afterwards.
 - **Settings → Actions → General → Workflow permissions:** "Read and write", so the GHCR push works
   after merge.
-- **Branch protection on `main`:** require a PR and the CI checks to pass.
+- **Branch protection on `main`:** see the section "Branch protection for `main`" below.
 - **GHCR package:** after the first push, link the package to the repo and set its visibility.
+
+## Branch protection for `main`
+
+Settings → Branches → **Add branch protection rule** (or Settings → Rules → Rulesets), branch name
+pattern `main`. This setup suits a solo maintainer on a public repo.
+
+**Enable**
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| Require a pull request before merging | on | All changes go through a branch and PR |
+| Required approvals | **0** | GitHub doesn't count your own approval, so 1 would stop you merging your own PRs. Raise it when you add collaborators |
+| Dismiss stale approvals on new commits | on | Only matters once approvals are required |
+| Require status checks to pass | on | Red CI can't be merged |
+| Require branches to be up to date | on | Checks run against the latest `main` |
+| Require conversation resolution | on | No unresolved review comments |
+| Require linear history | on | Keeps `main` tidy; works with squash merge |
+| Block force pushes | on | Protects history |
+| Restrict deletions | on | `main` can't be deleted |
+
+**Required status checks** (names are the job names in the workflows):
+
+- `Lint, Typecheck & Test`
+- `Lint Dockerfile (Hadolint)`
+- `Secret Scan (Gitleaks)`
+- `Build, Scan & Publish Image`
+- `Static Analysis (SAST)`
+
+A check name only appears in the search box after that job has run at least once in the repo. If a
+name is missing, open a PR first so the workflows run.
+
+**Leave off (for now)**
+
+- *Do not allow bypassing the above settings* / *Include administrators*: lets you override a red
+  check in an emergency. Turn it on once the pipeline has been reliable for a while.
+- *Require signed commits*: only with commit signing set up, or it blocks your own pushes.
+- *Require deployments to succeed*, *Lock branch*, *Merge queue*: not needed for this repo.
+- *Require code scanning results*: not until code scanning is enabled (see section 3). Until then
+  the rule can't be satisfied.
+
+**Related General settings**
+
+- Pull Requests: allow **Squash merging**, and enable **Automatically delete head branches**.
+- Actions → General → Workflow permissions: **Read and write**, so the GHCR push works after merge.
+
+**Effects to expect**
+
+- `git push` straight to `main` is rejected. Work on a branch and open a PR. Pushing a tag such as
+  `v0.1.0` still works.
+- If a required check is renamed or a job is removed, the PR waits forever on "Expected". Update the
+  rule when you change job names.
+- A merged PR whose branch was deleted can lose commits that weren't merged. Check
+  `git branch --contains <sha>` first (see section 1).
+
+---
 
 ## Workflow lessons
 
