@@ -186,6 +186,38 @@ git ls-remote --tags https://github.com/<owner>/<dependency>
 
 ---
 
+### 5c. `upload-sarif`: `Resource not accessible by integration` (get a workflow run)
+
+**Where:** `Upload Trivy results to GitHub Security tab` step in the `docker` job.
+
+**Error:** `Error: Resource not accessible by integration - https://docs.github.com/rest/actions/workflow-runs#get-a-workflow-run`
+
+**Cause:** `upload-sarif` calls the "get a workflow run" API, which needs `actions: read`. The
+`docker` job declares its permissions explicitly (`contents`, `packages`, `security-events`,
+`id-token`, `attestations`). When a job declares any permission, every permission it doesn't list
+becomes `none`, so `actions: read` was missing.
+
+**Fix:** Add `actions: read` to that job's permissions (read-only):
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: read
+  id-token: write
+  attestations: write
+```
+
+**Also changed:** The log warned that CodeQL Action v3 is deprecated in December 2026. All
+`github/codeql-action/*` references (`upload-sarif` in `ci.yml`, `init` and `analyze` in
+`codeql.yml`) now use `@v4`.
+
+**Remember:** Code scanning must also be enabled in the repo settings (see section 3), or the upload
+will still be rejected.
+
+---
+
 ## 6. Local Trivy: `context deadline exceeded`
 
 **Symptom:**
