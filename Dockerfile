@@ -37,6 +37,12 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY public ./public
 
+# The app starts with `node`, so the package managers bundled in the base image are dead weight
+# and carry their own CVEs. Remove them to shrink the attack surface.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg
+
 # Run as the unprivileged user that ships with the node image.
 USER node
 EXPOSE 3000
