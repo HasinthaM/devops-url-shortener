@@ -7,11 +7,23 @@ cause and fix for each. Entries are in the order they were found.
 |---|-----------|---------|------|
 | 1 | Validate → Audit | `npm audit` reports a high vulnerability in `effect` | Code (dependency) |
 | 2 | Secret Scan (Gitleaks) | `Resource not accessible by integration` (403) | Code (workflow permissions) |
-| 3 | CodeQL → analyze | `Code scanning is not enabled for this repository` | GitHub repo setting |
+| 3 | CodeQL → analyze, Trivy SARIF upload | `Code scanning is not enabled for this repository` | GitHub repo setting (workaround applied) |
 | 4 | Docker → Trivy gate | 10 fixable HIGH findings in the image | Code (Dockerfile) |
 | 5 | Docker → set up Trivy | `Unable to resolve action aquasecurity/trivy-action@0.28.0` | Code (workflow) |
+| 5b | Docker → set up Trivy | `Unable to resolve action aquasecurity/setup-trivy@v0.2.1` | Code (workflow) |
+| 5c | Docker → upload SARIF | `Resource not accessible by integration` (get a workflow run) | Code (workflow permissions) |
 | 6 | Local | Trivy DB download `context deadline exceeded` | Local environment |
 | 7 | Local | Docker commands fail / no server version | Local environment |
+| 8 | GitHub web UI | `A file with the same name already exists` | Usage |
+
+## Current status
+
+| Item | State |
+|------|-------|
+| `npm audit`, lint, typecheck, tests, Hadolint, Trivy gate | Pass locally (verified before pushing) |
+| Gitleaks permissions, Trivy action version, `actions: read` | Fixed in workflows |
+| Code scanning (Security tab uploads) | **Not enabled in repo settings.** Temporary artifact-based workaround is in place (see section 3) |
+| GHCR publish, attestation | Runs only on push to `main` or a `v*.*.*` tag, never on PRs. Not yet verified on `main` |
 
 ---
 
@@ -262,6 +274,26 @@ it read-only, which also avoids mounting the Docker socket into a container.
 
 ---
 
+## 8. GitHub web UI: `A file with the same name already exists`
+
+**Where:** Creating or uploading a file through GitHub's website or a desktop app.
+
+**Cause:** Not a git or CI error. A file with that path already exists on the branch (for example
+`docs/CICD-TROUBLESHOOTING.md`), and the web editor refuses duplicates.
+
+**Fix:** Edit the existing file (pencil icon) instead of creating a new one, or choose a different
+name. Changes made locally and pushed with `git push` don't hit this error.
+
+**Check what's on the branch:**
+
+```bash
+git fetch --prune
+git status -sb                       # local vs origin
+git ls-tree -r --name-only origin/<branch> | grep -i <name>
+```
+
+---
+
 ## Local checks (run before every push)
 
 These mirror the CI jobs so most failures are caught in minutes.
@@ -288,7 +320,8 @@ Use `npm ci --ignore-scripts` so dependency install scripts don't run on your ma
 ## Repository settings checklist (not in code)
 
 - **Settings → Code security:** enable code scanning (CodeQL, Advanced), Dependency graph,
-  Dependabot alerts and secret protection.
+  Dependabot alerts and secret protection. Until code scanning is on, the SARIF-upload workaround
+  from section 3 stays in the workflows. Remove it afterwards.
 - **Settings → Actions → General → Workflow permissions:** "Read and write", so the GHCR push works
   after merge.
 - **Branch protection on `main`:** require a PR and the CI checks to pass.
