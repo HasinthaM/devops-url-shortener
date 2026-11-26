@@ -95,6 +95,20 @@ scanning is turned on. `codeql.yml` already has `security-events: write`.
 - If you can't enable it, either remove the CodeQL workflow or set `upload: never` on the analyze
   step so it no longer fails the run.
 
+**Temporary workaround in this repo:** While code scanning was still off, the workflows were changed
+so the pipeline doesn't fail on the upload:
+- `codeql.yml`: `analyze` uses `upload: never` and `output: codeql-results`, and the SARIF is saved
+  as the `codeql-results` artifact (Actions run page → Artifacts).
+- `ci.yml`: the Trivy SARIF is saved as the `trivy-results` artifact, and the `upload-sarif` step has
+  `continue-on-error: true`.
+
+The Trivy **gate** (fails on fixable CRITICAL/HIGH) is unchanged and still blocks vulnerable images.
+CodeQL findings do not block merges either way.
+
+**To undo once code scanning is enabled:** in `codeql.yml` remove `upload: never`, `output`, and the
+"Save CodeQL results" step; in `ci.yml` remove `continue-on-error: true` (keeping the artifact step
+is harmless).
+
 ---
 
 ## 4. Trivy gate: 10 fixable HIGH vulnerabilities in the image
