@@ -169,7 +169,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy scan (report to Security tab)
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: scan-target:ci
           format: sarif
@@ -187,7 +187,7 @@ jobs:
 
       # Quality gate: fail the pipeline on fixable CRITICAL/HIGH vulnerabilities.
       - name: Trivy gate (fail on fixable CRITICAL/HIGH)
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: scan-target:ci
           format: table
